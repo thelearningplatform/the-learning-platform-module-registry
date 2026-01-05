@@ -1,0 +1,37 @@
+# Module Registry
+# This file defines approved modules for the learning platform
+schemaVersion: "1.0"
+
+modules:
+  - id: gpu-programming
+    name: "GPU Programming: From Foundations to Ray Tracing"
+    description: "Master GPU programming through hands-on projects. Build image processors, particle simulations, neural networks, text pipelines, and a ray tracer while learning CUDA, memory optimization, and parallel algorithms."
+    repoUrl: https://github.com/thelearningplatform/track-gpu-programming
+    version: v1.0.0
+    author: learning-platform
+    authorType: official
+    status: approved
+    approvedAt: "2026-01-04T00:00:00Z"
+    approvedBy: platform-admin
+
+  - id: quic-tutorial
+    name: "QUIC Protocol Deep Dive"
+    description: "Learn QUIC by building real applications. Master modern networking concepts through hands-on projects including file transfer, chat applications, video streaming, and custom protocols."
+    repoUrl: https://github.com/thelearningplatform/track-quic-tutorial
+    version: v1.0.0
+    author: learning-platform
+    authorType: official
+    status: approved
+    approvedAt: "2026-01-04T00:00:00Z"
+    approvedBy: platform-admin
+
+  - id: snake-game
+    name: "Snake Game Development"
+    description: "Learn fundamental programming concepts and game development principles by building a classic Snake game. Progress from console-based implementation to graphical interfaces while mastering data structures, game loops, and user interface design."
+    repoUrl: https://github.com/thelearningplatform/track-snake-game
+    version: v1.0.0
+    author: learning-platform
+    authorType: official
+    status: approved
+    approvedAt: "2026-01-04T00:00:00Z"
+    approvedBy: platform-admin
