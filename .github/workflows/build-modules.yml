@@ -1,0 +1,148 @@
+# Reusable workflow for building modules from the registry
+# Can be called by other repos or triggered directly on registry changes
+#
+# Usage:
+#   jobs:
+#     build:
+#       uses: thelearningplatform/the-learning-platform-module-registry/.github/workflows/build-modules.yml@master
+#       with:
+#         registry-url: 'https://raw.githubusercontent.com/.../registry.yaml'  # optional override
+
+name: Build Modules
+
+on:
+  workflow_dispatch:
+    inputs:
+      registry_url:
+        description: 'Override registry URL'
+        required: false
+        type: string
+
+  push:
+    branches: [master]
+    paths:
+      - 'registry.yaml'
+
+  workflow_call:
+    inputs:
+      registry-url:
+        description: 'Override registry URL (defaults to this repo registry.yaml)'
+        required: false
+        type: string
+    outputs:
+      module-count:
+        description: 'Number of modules built'
+        value: ${{ jobs.build-modules.outputs.module-count }}
+
+jobs:
+  build-modules:
+    name: Build Modules
+    runs-on: ubuntu-latest
+    outputs:
+      module-count: ${{ steps.build.outputs.module_count }}
+
+    steps:
+      - name: Checkout registry
+        uses: actions/checkout@v4
+
+      - name: Set up yq
+        uses: mikefarah/yq@v4
+
+      - name: Set registry URL
+        id: registry-url
+        run: |
+          # Priority: workflow_call input > workflow_dispatch input > default
+          if [ -n "${{ inputs.registry-url }}" ]; then
+            echo "url=${{ inputs.registry-url }}" >> $GITHUB_OUTPUT
+          elif [ -n "${{ github.event.inputs.registry_url }}" ]; then
+            echo "url=${{ github.event.inputs.registry_url }}" >> $GITHUB_OUTPUT
+          else
+            echo "url=https://raw.githubusercontent.com/${{ github.repository }}/master/registry.yaml" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Cache modules
+        uses: actions/cache@v4
+        id: modules-cache
+        with:
+          path: modules
+          key: modules-${{ hashFiles('registry.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            modules-${{ hashFiles('registry.yaml') }}-
+            modules-
+
+      - name: Build modules from registry
+        id: build
+        if: steps.modules-cache.outputs.cache-hit != 'true'
+        run: |
+          chmod +x .github/scripts/build-modules.sh
+          .github/scripts/build-modules.sh \
+            -r "${{ steps.registry-url.outputs.url }}" \
+            -o ./modules \
+            -m ./registry-manifest.json \
+            -v
+          
+          # Output module count
+          MODULE_COUNT=$(jq '.modules | length' registry-manifest.json 2>/dev/null || echo "0")
+          echo "module_count=$MODULE_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Validate all modules
+        run: |
+          chmod +x .github/scripts/validate-module.sh
+          for module_dir in modules/*/; do
+            if [ -d "$module_dir" ]; then
+              echo "Validating: $module_dir"
+              .github/scripts/validate-module.sh "$module_dir"
+            fi
+          done
+
+      - name: Upload modules artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: modules
+          path: modules/
+          retention-days: 7
+
+      - name: Upload manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: registry-manifest
+          path: registry-manifest.json
+          retention-days: 7
+
+  verify-manifest:
+    name: Verify Manifest
+    runs-on: ubuntu-latest
+    needs: build-modules
+
+    steps:
+      - name: Download manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: registry-manifest
+
+      - name: Validate manifest JSON
+        run: |
+          echo "Validating registry-manifest.json..."
+          if ! jq empty registry-manifest.json 2>/dev/null; then
+            echo "ERROR: Invalid JSON in registry-manifest.json"
+            exit 1
+          fi
+          
+          SCHEMA_VERSION=$(jq -r '.schemaVersion' registry-manifest.json)
+          GENERATED_AT=$(jq -r '.generatedAt' registry-manifest.json)
+          MODULE_COUNT=$(jq '.modules | length' registry-manifest.json)
+          
+          echo "Schema Version: $SCHEMA_VERSION"
+          echo "Generated At: $GENERATED_AT"
+          echo "Module Count: $MODULE_COUNT"
+          
+          if [ "$SCHEMA_VERSION" != "1.0" ]; then
+            echo "WARNING: Unexpected schema version: $SCHEMA_VERSION"
+          fi
+          
+          echo "✅ Manifest validation passed!"
+
+      - name: List modules in manifest
+        run: |
+          echo "Modules in manifest:"
+          jq -r '.modules[] | "  - \(.id) v\(.version) by \(.author) (\(.authorType))"' registry-manifest.json

@@ -1,0 +1,162 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://learning-platform.example.com/schemas/step.schema.json",
+  "title": "Step Schema",
+  "description": "Schema for step.yaml files in learning modules",
+  "type": "object",
+  "required": ["id", "name", "type"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the step within the module",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "minLength": 3,
+      "maxLength": 100,
+      "examples": ["setup", "first-program", "quiz-1"]
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name of the step",
+      "minLength": 3,
+      "maxLength": 255,
+      "examples": ["Setting Up Your Environment"]
+    },
+    "type": {
+      "type": "string",
+      "description": "Type of step content",
+      "enum": ["lesson", "exercise", "quiz", "project", "video"],
+      "default": "lesson"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the step",
+      "maxLength": 500
+    },
+    "estimatedMinutes": {
+      "type": "integer",
+      "description": "Estimated minutes to complete the step",
+      "minimum": 1,
+      "maximum": 120,
+      "default": 15
+    },
+    "content": {
+      "type": "object",
+      "description": "Content configuration",
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Path to content file (relative to step directory)",
+          "examples": ["instructions.md", "content.md"]
+        },
+        "videoUrl": {
+          "type": "string",
+          "description": "URL to video content",
+          "format": "uri"
+        }
+      }
+    },
+    "exercise": {
+      "type": "object",
+      "description": "Exercise configuration (for exercise type steps)",
+      "properties": {
+        "starterCode": {
+          "type": "string",
+          "description": "Path to starter code file"
+        },
+        "solutionCode": {
+          "type": "string",
+          "description": "Path to solution code file"
+        },
+        "testFile": {
+          "type": "string",
+          "description": "Path to test file for validation"
+        },
+        "language": {
+          "type": "string",
+          "description": "Programming language for the exercise",
+          "examples": ["python", "javascript", "java"]
+        }
+      }
+    },
+    "quiz": {
+      "type": "object",
+      "description": "Quiz configuration (for quiz type steps)",
+      "properties": {
+        "questions": {
+          "type": "array",
+          "description": "Quiz questions",
+          "items": {
+            "type": "object",
+            "required": ["question", "options", "correctAnswer"],
+            "properties": {
+              "question": {
+                "type": "string",
+                "description": "The question text"
+              },
+              "options": {
+                "type": "array",
+                "description": "Answer options",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 2,
+                "maxItems": 6
+              },
+              "correctAnswer": {
+                "type": "integer",
+                "description": "Index of correct answer (0-based)",
+                "minimum": 0
+              },
+              "explanation": {
+                "type": "string",
+                "description": "Explanation of the correct answer"
+              }
+            }
+          },
+          "minItems": 1
+        },
+        "passingScore": {
+          "type": "integer",
+          "description": "Minimum percentage to pass",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 70
+        }
+      }
+    },
+    "hints": {
+      "type": "array",
+      "description": "Hints for the step",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "resources": {
+      "type": "array",
+      "description": "Additional resources",
+      "items": {
+        "type": "object",
+        "required": ["title", "url"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Resource title"
+          },
+          "url": {
+            "type": "string",
+            "description": "Resource URL",
+            "format": "uri"
+          },
+          "type": {
+            "type": "string",
+            "description": "Resource type",
+            "enum": ["documentation", "article", "video", "tool"]
+          }
+        }
+      },
+      "default": []
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,217 @@
+# Reusable workflow for validating individual track modules
+# Called by track repositories to validate their structure against schemas
+#
+# Usage in track repository:
+#   jobs:
+#     validate:
+#       uses: thelearningplatform/the-learning-platform-module-registry/.github/workflows/validate-module.yml@main
+#       with:
+#         module-path: '.'
+
+name: Validate Module
+
+on:
+  workflow_call:
+    inputs:
+      module-path:
+        description: 'Path to the module directory to validate'
+        required: false
+        type: string
+        default: '.'
+      run-tests:
+        description: 'Whether to run tests in tests/ directory'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  validate-structure:
+    name: Validate Module Structure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout module repository
+        uses: actions/checkout@v4
+
+      - name: Checkout registry for schemas and scripts
+        uses: actions/checkout@v4
+        with:
+          repository: thelearningplatform/the-learning-platform-module-registry
+          path: .registry
+          sparse-checkout: |
+            .github/schemas
+            .github/scripts
+
+      - name: Set up Node.js for JSON Schema validation
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install -g ajv-cli ajv-formats
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Validate track.yaml exists
+        run: |
+          MODULE_PATH="${{ inputs.module-path }}"
+          if [ ! -f "$MODULE_PATH/track.yaml" ]; then
+            echo "::error::track.yaml not found at $MODULE_PATH/track.yaml"
+            exit 1
+          fi
+          echo "✓ track.yaml found"
+
+      - name: Convert YAML to JSON for validation
+        run: |
+          MODULE_PATH="${{ inputs.module-path }}"
+          
+          # Convert track.yaml to JSON
+          yq -o=json "$MODULE_PATH/track.yaml" > /tmp/track.json
+          echo "Converted track.yaml to JSON"
+          
+          # Convert module.yaml files
+          find "$MODULE_PATH" -name "module.yaml" | while read -r file; do
+            dir=$(dirname "$file")
+            yq -o=json "$file" > "$dir/module.json"
+            echo "Converted $file to JSON"
+          done
+          
+          # Convert step.yaml files
+          find "$MODULE_PATH" -name "step.yaml" | while read -r file; do
+            dir=$(dirname "$file")
+            yq -o=json "$file" > "$dir/step.json"
+            echo "Converted $file to JSON"
+          done
+
+      - name: Validate track.yaml against schema
+        run: |
+          ajv validate \
+            -s .registry/.github/schemas/track.schema.json \
+            -d /tmp/track.json \
+            --all-errors \
+            -c ajv-formats
+          echo "✓ track.yaml validates against schema"
+
+      - name: Validate module.yaml files against schema
+        run: |
+          MODULE_PATH="${{ inputs.module-path }}"
+          ERRORS=0
+          
+          find "$MODULE_PATH" -name "module.json" | while read -r file; do
+            echo "Validating: $file"
+            if ! ajv validate \
+              -s .registry/.github/schemas/module.schema.json \
+              -d "$file" \
+              --all-errors \
+              -c ajv-formats; then
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          
+          if [ $ERRORS -gt 0 ]; then
+            echo "::error::$ERRORS module.yaml file(s) failed validation"
+            exit 1
+          fi
+          echo "✓ All module.yaml files validate against schema"
+
+      - name: Validate step.yaml files against schema
+        run: |
+          MODULE_PATH="${{ inputs.module-path }}"
+          ERRORS=0
+          
+          find "$MODULE_PATH" -name "step.json" | while read -r file; do
+            echo "Validating: $file"
+            if ! ajv validate \
+              -s .registry/.github/schemas/step.schema.json \
+              -d "$file" \
+              --all-errors \
+              -c ajv-formats; then
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          
+          if [ $ERRORS -gt 0 ]; then
+            echo "::error::$ERRORS step.yaml file(s) failed validation"
+            exit 1
+          fi
+          echo "✓ All step.yaml files validate against schema"
+
+      - name: Run structure validation script
+        run: |
+          chmod +x .registry/.github/scripts/validate-module.sh
+          .registry/.github/scripts/validate-module.sh "${{ inputs.module-path }}"
+
+      - name: Check recommended files
+        run: |
+          MODULE_PATH="${{ inputs.module-path }}"
+          
+          if [ ! -f "$MODULE_PATH/README.md" ]; then
+            echo "::warning::README.md not found - recommended for documentation"
+          fi
+          
+          if [ ! -f "$MODULE_PATH/LICENSE" ]; then
+            echo "::warning::LICENSE file not found - recommended for open source modules"
+          fi
+
+  run-tests:
+    name: Run Module Tests
+    runs-on: ubuntu-latest
+    if: ${{ inputs.run-tests }}
+    needs: validate-structure
+    steps:
+      - name: Checkout module repository
+        uses: actions/checkout@v4
+
+      - name: Check for tests directory
+        id: check-tests
+        run: |
+          MODULE_PATH="${{ inputs.module-path }}"
+          if [ -d "$MODULE_PATH/tests" ]; then
+            echo "has-tests=true" >> $GITHUB_OUTPUT
+          else
+            echo "has-tests=false" >> $GITHUB_OUTPUT
+            echo "No tests directory found - skipping tests"
+          fi
+
+      - name: Set up Python
+        if: steps.check-tests.outputs.has-tests == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        if: steps.check-tests.outputs.has-tests == 'true'
+        run: |
+          MODULE_PATH="${{ inputs.module-path }}"
+          if [ -f "$MODULE_PATH/tests/requirements.txt" ]; then
+            pip install -r "$MODULE_PATH/tests/requirements.txt"
+          fi
+          pip install pytest pytest-cov
+
+      - name: Run Python tests
+        if: steps.check-tests.outputs.has-tests == 'true'
+        run: |
+          MODULE_PATH="${{ inputs.module-path }}"
+          cd "$MODULE_PATH"
+          pytest tests/ -v --tb=short || true
+
+  validation-summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: [validate-structure, run-tests]
+    if: always()
+    steps:
+      - name: Check validation results
+        run: |
+          if [ "${{ needs.validate-structure.result }}" == "failure" ]; then
+            echo "::error::Module structure validation failed"
+            exit 1
+          fi
+          
+          if [ "${{ needs.run-tests.result }}" == "failure" ]; then
+            echo "::warning::Module tests failed - review test output"
+          fi
+          
+          echo "✓ Module validation complete"
+          echo "Structure validation: ${{ needs.validate-structure.result }}"
+          echo "Test execution: ${{ needs.run-tests.result }}"

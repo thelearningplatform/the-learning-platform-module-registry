@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://learning-platform.example.com/schemas/module.schema.json",
+  "title": "Module Schema",
+  "description": "Schema for module.yaml files in learning modules",
+  "type": "object",
+  "required": ["id", "name", "steps"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the module within the track",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "minLength": 3,
+      "maxLength": 100,
+      "examples": ["introduction", "advanced-concepts"]
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name of the module",
+      "minLength": 3,
+      "maxLength": 255,
+      "examples": ["Introduction to GPU Programming"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the module",
+      "maxLength": 1000
+    },
+    "steps": {
+      "type": "array",
+      "description": "List of step IDs in order",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "estimatedMinutes": {
+      "type": "integer",
+      "description": "Estimated minutes to complete the module",
+      "minimum": 5,
+      "maximum": 480,
+      "default": 60
+    },
+    "learningObjectives": {
+      "type": "array",
+      "description": "Learning objectives for the module",
+      "items": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 500
+      },
+      "default": []
+    },
+    "prerequisites": {
+      "type": "array",
+      "description": "Module IDs that should be completed first",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+      },
+      "uniqueItems": true,
+      "default": []
+    }
+  },
+  "additionalProperties": false
+}
