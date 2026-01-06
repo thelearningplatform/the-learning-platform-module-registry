@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://learning-platform.example.com/schemas/track.schema.json",
+  "title": "Track Schema",
+  "description": "Schema for track.yaml files in learning modules",
+  "type": "object",
+  "required": ["id", "name", "description", "modules"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the track",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "minLength": 3,
+      "maxLength": 100,
+      "examples": ["gpu-programming", "ml-basics"]
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name of the track",
+      "minLength": 3,
+      "maxLength": 255,
+      "examples": ["GPU Programming Fundamentals"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of the track",
+      "minLength": 10,
+      "maxLength": 2000
+    },
+    "prerequisites": {
+      "type": "array",
+      "description": "List of prerequisite track IDs",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+      },
+      "uniqueItems": true,
+      "default": []
+    },
+    "languageVariants": {
+      "type": "array",
+      "description": "Available programming language variants (strings or objects)",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Language identifier as string",
+            "examples": ["python", "cuda-cpp", "rust"]
+          },
+          {
+            "type": "object",
+            "required": ["language", "label"],
+            "properties": {
+              "language": {
+                "type": "string",
+                "description": "Language identifier",
+                "examples": ["python", "javascript", "java"]
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for the language",
+                "examples": ["Python", "JavaScript", "Java"]
+              }
+            }
+          }
+        ]
+      },
+      "default": []
+    },
+    "frameworkMappings": {
+      "type": "object",
+      "description": "Mapping of language variants to their frameworks/tools",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {}
+    },
+    "modules": {
+      "type": "array",
+      "description": "List of module IDs in order",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "freeModules": {
+      "type": "array",
+      "description": "Module IDs that are free (not requiring subscription)",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+      },
+      "uniqueItems": true,
+      "default": []
+    },
+    "estimatedWeeks": {
+      "type": "integer",
+      "description": "Estimated weeks to complete the track",
+      "minimum": 1,
+      "maximum": 52,
+      "default": 4
+    },
+    "published": {
+      "type": "boolean",
+      "description": "Whether the track is published and visible",
+      "default": false
+    },
+    "tags": {
+      "type": "array",
+      "description": "Categorization tags",
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 50
+      },
+      "uniqueItems": true,
+      "default": []
+    },
+    "difficulty": {
+      "type": "string",
+      "description": "Difficulty level of the track",
+      "enum": ["beginner", "intermediate", "advanced"],
+      "default": "intermediate"
+    }
+  },
+  "additionalProperties": false
+}
