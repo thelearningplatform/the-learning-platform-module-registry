@@ -7,11 +7,13 @@
 #   -r, --registry-url URL    URL to registry.yaml (default: $MODULE_REGISTRY_URL)
 #   -o, --output-dir DIR      Output directory for modules (default: ./modules)
 #   -m, --manifest-path PATH  Path for generated manifest (default: ./registry-manifest.json)
+#   -t, --token TOKEN         GitHub token for private repos (default: $GITHUB_TOKEN)
 #   -v, --verbose             Enable verbose output
 #   -h, --help                Show this help message
 #
 # Environment variables:
 #   MODULE_REGISTRY_URL       Default registry URL
+#   GITHUB_TOKEN              GitHub token for private repo access
 #
 # Exit codes:
 #   0 - Build successful
@@ -23,6 +25,7 @@ set -euo pipefail
 REGISTRY_URL="${MODULE_REGISTRY_URL:-}"
 OUTPUT_DIR="./modules"
 MANIFEST_PATH="./registry-manifest.json"
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 VERBOSE=false
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -65,14 +68,17 @@ Options:
   -r, --registry-url URL    URL to registry.yaml (default: \$MODULE_REGISTRY_URL)
   -o, --output-dir DIR      Output directory for modules (default: ./modules)
   -m, --manifest-path PATH  Path for generated manifest (default: ./registry-manifest.json)
+  -t, --token TOKEN         GitHub token for private repos (default: \$GITHUB_TOKEN)
   -v, --verbose             Enable verbose output
   -h, --help                Show this help message
 
 Environment variables:
   MODULE_REGISTRY_URL       Default registry URL
+  GITHUB_TOKEN              GitHub token for private repo access
 
 Example:
   $0 -r https://raw.githubusercontent.com/org/registry/main/registry.yaml
+  $0 -r https://example.com/registry.yaml -t ghp_xxxxxxxxxxxx
   MODULE_REGISTRY_URL=https://example.com/registry.yaml $0
 EOF
 }
@@ -90,6 +96,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -m|--manifest-path)
             MANIFEST_PATH="$2"
+            shift 2
+            ;;
+        -t|--token)
+            GITHUB_TOKEN="$2"
             shift 2
             ;;
         -v|--verbose)
@@ -171,6 +181,14 @@ else
         log_verbose "  Version: $VERSION"
         log_verbose "  Author: $AUTHOR ($AUTHOR_TYPE)"
         
+        # Build authenticated URL if token is provided
+        CLONE_URL="$REPO_URL"
+        if [ -n "$GITHUB_TOKEN" ]; then
+            # Convert https://github.com/org/repo to https://token@github.com/org/repo
+            CLONE_URL=$(echo "$REPO_URL" | sed "s|https://github.com|https://${GITHUB_TOKEN}@github.com|")
+            log_verbose "  Using authenticated clone URL"
+        fi
+        
         # Clone module at specific version
         MODULE_DIR="$OUTPUT_DIR/$MODULE_ID"
         
@@ -182,7 +200,7 @@ else
         log_verbose "  Cloning repository..."
         if [ "$VERSION" = "latest" ]; then
             log_warning "Module $MODULE_ID uses 'latest' version - builds may not be reproducible"
-            if ! git clone --quiet --depth 1 "$REPO_URL" "$MODULE_DIR" 2>/dev/null; then
+            if ! git clone --quiet --depth 1 "$CLONE_URL" "$MODULE_DIR" 2>/dev/null; then
                 log_error "Failed to clone $MODULE_ID at latest"
                 ((FAILED_COUNT++))
                 continue
@@ -190,7 +208,7 @@ else
             # Capture actual commit SHA for manifest
             ACTUAL_VERSION=$(git -C "$MODULE_DIR" rev-parse --short HEAD 2>/dev/null || echo "latest")
         else
-            if ! git clone --quiet --depth 1 --branch "$VERSION" "$REPO_URL" "$MODULE_DIR" 2>/dev/null; then
+            if ! git clone --quiet --depth 1 --branch "$VERSION" "$CLONE_URL" "$MODULE_DIR" 2>/dev/null; then
                 log_error "Failed to clone $MODULE_ID at version $VERSION"
                 ((FAILED_COUNT++))
                 continue
