@@ -1,0 +1,161 @@
+name: Validate Module Entries
+
+on:
+  workflow_dispatch:  # Allow manual trigger for testing
+  pull_request:
+    paths:
+      - 'registry.yaml'
+
+jobs:
+  detect-changes:
+    name: Detect Changed Modules
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.diff.outputs.modules }}
+      has_changes: ${{ steps.diff.outputs.has_changes }}
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Extract changed modules
+        id: diff
+        run: |
+          # Get the base branch registry.yaml
+          git show origin/${{ github.base_ref }}:registry.yaml > /tmp/base-registry.yaml 2>/dev/null || echo "modules: []" > /tmp/base-registry.yaml
+          
+          # Extract module IDs from base and PR
+          yq e '.modules[].id' /tmp/base-registry.yaml 2>/dev/null | sort > /tmp/base-modules.txt || touch /tmp/base-modules.txt
+          yq e '.modules[].id' registry.yaml | sort > /tmp/pr-modules.txt
+          
+          # Find new modules (in PR but not in base)
+          NEW_MODULES=$(comm -13 /tmp/base-modules.txt /tmp/pr-modules.txt | tr '\n' ' ')
+          
+          # Find modules with changed version/repoUrl
+          CHANGED_MODULES=""
+          for module_id in $(cat /tmp/pr-modules.txt); do
+            if grep -q "^${module_id}$" /tmp/base-modules.txt; then
+              # Module exists in both - check if version or repoUrl changed
+              BASE_VERSION=$(yq e ".modules[] | select(.id == \"$module_id\") | .version" /tmp/base-registry.yaml)
+              PR_VERSION=$(yq e ".modules[] | select(.id == \"$module_id\") | .version" registry.yaml)
+              BASE_URL=$(yq e ".modules[] | select(.id == \"$module_id\") | .repoUrl" /tmp/base-registry.yaml)
+              PR_URL=$(yq e ".modules[] | select(.id == \"$module_id\") | .repoUrl" registry.yaml)
+              
+              if [ "$BASE_VERSION" != "$PR_VERSION" ] || [ "$BASE_URL" != "$PR_URL" ]; then
+                CHANGED_MODULES="$CHANGED_MODULES $module_id"
+              fi
+            fi
+          done
+          
+          # Combine new and changed modules
+          ALL_MODULES=$(echo "$NEW_MODULES $CHANGED_MODULES" | xargs)
+          
+          if [ -z "$ALL_MODULES" ]; then
+            echo "No new or changed modules detected"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "modules=[]" >> $GITHUB_OUTPUT
+          else
+            echo "Modules to validate: $ALL_MODULES"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            # Convert to JSON array
+            JSON_ARRAY=$(echo "$ALL_MODULES" | tr ' ' '\n' | grep -v '^$' | jq -R . | jq -s -c .)
+            echo "modules=$JSON_ARRAY" >> $GITHUB_OUTPUT
+          fi
+
+  validate-modules:
+    name: Validate ${{ matrix.module }}
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.detect-changes.outputs.modules) }}
+    steps:
+      - name: Checkout registry
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Extract module info
+        id: module-info
+        run: |
+          MODULE_ID="${{ matrix.module }}"
+          REPO_URL=$(yq e ".modules[] | select(.id == \"$MODULE_ID\") | .repoUrl" registry.yaml)
+          VERSION=$(yq e ".modules[] | select(.id == \"$MODULE_ID\") | .version" registry.yaml)
+          STATUS=$(yq e ".modules[] | select(.id == \"$MODULE_ID\") | .status" registry.yaml)
+          
+          echo "repo_url=$REPO_URL" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          
+          echo "Module: $MODULE_ID"
+          echo "Repo: $REPO_URL"
+          echo "Version: $VERSION"
+          echo "Status: $STATUS"
+
+      - name: Clone module repository
+        run: |
+          VERSION="${{ steps.module-info.outputs.version }}"
+          REPO_URL="${{ steps.module-info.outputs.repo_url }}"
+          
+          if [ "$VERSION" = "latest" ]; then
+            echo "Cloning latest (default branch)..."
+            git clone --depth 1 "$REPO_URL" module-content
+          else
+            echo "Cloning at version $VERSION..."
+            git clone --depth 1 --branch "$VERSION" "$REPO_URL" module-content
+          fi
+
+      - name: Fetch validation script
+        run: |
+          # Fetch validate-module.sh from the main platform repo
+          curl -sSfL https://raw.githubusercontent.com/thelearningplatform/the-learning-platform-app/main/.github/scripts/validate-module.sh -o validate-module.sh
+          chmod +x validate-module.sh
+
+      - name: Validate module structure
+        id: validate
+        run: |
+          echo "::group::Validation Output"
+          if ./validate-module.sh module-content; then
+            echo "::endgroup::"
+            echo "result=pass" >> $GITHUB_OUTPUT
+            echo "✅ Module ${{ matrix.module }} passed validation"
+          else
+            echo "::endgroup::"
+            echo "result=fail" >> $GITHUB_OUTPUT
+            echo "❌ Module ${{ matrix.module }} failed validation"
+            exit 1
+          fi
+
+      - name: Check status consistency
+        if: steps.module-info.outputs.status == 'approved'
+        run: |
+          if [ "${{ steps.validate.outputs.result }}" != "pass" ]; then
+            echo "::error::Module ${{ matrix.module }} has status 'approved' but failed validation"
+            exit 1
+          fi
+
+  summary:
+    name: Validation Summary
+    needs: [detect-changes, validate-modules]
+    if: always() && needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        run: |
+          if [ "${{ needs.validate-modules.result }}" == "success" ]; then
+            echo "✅ All modules passed validation"
+          else
+            echo "❌ One or more modules failed validation"
+            exit 1
+          fi
