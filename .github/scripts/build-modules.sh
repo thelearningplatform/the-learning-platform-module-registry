@@ -202,7 +202,7 @@ else
             log_warning "Module $MODULE_ID uses 'latest' version - builds may not be reproducible"
             if ! git clone --quiet --depth 1 "$CLONE_URL" "$MODULE_DIR" 2>/dev/null; then
                 log_error "Failed to clone $MODULE_ID at latest"
-                ((FAILED_COUNT++))
+                FAILED_COUNT=$((FAILED_COUNT + 1))
                 continue
             fi
             # Capture actual commit SHA for manifest
@@ -210,7 +210,7 @@ else
         else
             if ! git clone --quiet --depth 1 --branch "$VERSION" "$CLONE_URL" "$MODULE_DIR" 2>/dev/null; then
                 log_error "Failed to clone $MODULE_ID at version $VERSION"
-                ((FAILED_COUNT++))
+                FAILED_COUNT=$((FAILED_COUNT + 1))
                 continue
             fi
             ACTUAL_VERSION="$VERSION"
@@ -224,7 +224,7 @@ else
         if ! "$SCRIPT_DIR/validate-module.sh" "$MODULE_DIR" > /dev/null 2>&1; then
             log_error "Module validation failed for $MODULE_ID"
             rm -rf "$MODULE_DIR"
-            ((FAILED_COUNT++))
+            FAILED_COUNT=$((FAILED_COUNT + 1))
             continue
         fi
         
@@ -247,7 +247,7 @@ else
         fi
         
         log_success "Module $MODULE_ID cloned and validated"
-        ((MODULE_COUNT++))
+        MODULE_COUNT=$((MODULE_COUNT + 1))
         
     done <<< "$MODULES"
 fi
