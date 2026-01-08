@@ -108,14 +108,18 @@ jobs:
         run: |
           VERSION="${{ steps.module-info.outputs.version }}"
           REPO_URL="${{ steps.module-info.outputs.repo_url }}"
+          # Extract org/repo from URL (e.g., thelearningplatform/track-snake-game)
+          REPO_PATH=$(echo "$REPO_URL" | sed 's|https://github.com/||')
           
           if [ "$VERSION" = "latest" ]; then
             echo "Cloning latest (default branch)..."
-            git clone --depth 1 "$REPO_URL" module-content
+            gh repo clone "$REPO_PATH" module-content -- --depth 1
           else
             echo "Cloning at version $VERSION..."
-            git clone --depth 1 --branch "$VERSION" "$REPO_URL" module-content
+            gh repo clone "$REPO_PATH" module-content -- --depth 1 --branch "$VERSION"
           fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Validate module structure
         id: validate
