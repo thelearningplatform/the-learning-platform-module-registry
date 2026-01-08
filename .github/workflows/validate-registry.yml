@@ -119,7 +119,7 @@ jobs:
             gh repo clone "$REPO_PATH" module-content -- --depth 1 --branch "$VERSION"
           fi
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.MODULES_PAT }}
 
       - name: Validate module structure
         id: validate
