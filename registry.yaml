@@ -26,8 +26,8 @@ modules:
     description: "Learn QUIC by building real applications. Master modern networking concepts through hands-on projects including file transfer, chat applications, video streaming, and custom protocols."
     repoUrl: https://github.com/thelearningplatform/track-quic-tutorial
     # releaseUrl derived: https://github.com/thelearningplatform/track-quic-tutorial/releases/download/v1.0.0/module.tar.gz
-    version: v1.0.0
-    checksum: ""  # TODO: Populate after first release
+    version: v1.0.2
+    checksum: bbc6ab32db2b9b19830833c2eb7e9f059f1c8bbf7ad3ee1a5529dfabe5b28e4b
     author: thelearningplatform
     authorType: official
     status: approved
