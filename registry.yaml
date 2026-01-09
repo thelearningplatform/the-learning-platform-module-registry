@@ -17,7 +17,7 @@ modules:
     checksum: ""  # TODO: Populate after first release
     author: thelearningplatform
     authorType: official
-    status: approved
+    status: pending
     approvedAt: "2026-01-04T00:00:00Z"
     approvedBy: platform-admin
 
@@ -43,6 +43,6 @@ modules:
     checksum: ""  # TODO: Populate after first release
     author: thelearningplatform
     authorType: official
-    status: approved
+    status: pending
     approvedAt: "2026-01-04T00:00:00Z"
     approvedBy: platform-admin
