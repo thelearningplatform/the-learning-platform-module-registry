@@ -6,21 +6,19 @@
 # - version: Must be pinned (e.g., "v1.0.0"), not "latest"
 # - checksum: SHA256 of module.tar.gz for integrity verification
 schemaVersion: "1.1"
-
 modules:
   - id: gpu-programming
     name: "GPU Programming: From Foundations to Ray Tracing"
     description: "Master GPU programming through hands-on projects. Build image processors, particle simulations, neural networks, text pipelines, and a ray tracer while learning CUDA, memory optimization, and parallel algorithms."
     repoUrl: https://github.com/thelearningplatform/track-gpu-programming
     # releaseUrl derived: https://github.com/thelearningplatform/track-gpu-programming/releases/download/v1.0.0/module.tar.gz
-    version: v1.0.0
-    checksum: ""  # TODO: Populate after first release
+    version: v1.0.3
+    checksum: "ea8eec2c8f37e07f81a000100ffc9f5e7fdcb96e42a96392de8ca07110a48b2c" # TODO: Populate after first release
     author: thelearningplatform
     authorType: official
     status: pending
     approvedAt: "2026-01-04T00:00:00Z"
     approvedBy: platform-admin
-
   - id: quic-tutorial
     name: "QUIC Protocol Deep Dive"
     description: "Learn QUIC by building real applications. Master modern networking concepts through hands-on projects including file transfer, chat applications, video streaming, and custom protocols."
@@ -33,14 +31,13 @@ modules:
     status: approved
     approvedAt: "2026-01-04T00:00:00Z"
     approvedBy: platform-admin
-
   - id: snake-game
     name: "Snake Game Development"
     description: "Learn fundamental programming concepts and game development principles by building a classic Snake game. Progress from console-based implementation to graphical interfaces while mastering data structures, game loops, and user interface design."
     repoUrl: https://github.com/thelearningplatform/track-snake-game
     # releaseUrl derived: https://github.com/thelearningplatform/track-snake-game/releases/download/v1.0.0/module.tar.gz
     version: v1.0.0
-    checksum: ""  # TODO: Populate after first release
+    checksum: "" # TODO: Populate after first release
     author: thelearningplatform
     authorType: official
     status: pending
