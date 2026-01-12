@@ -36,8 +36,8 @@ modules:
     description: "Learn fundamental programming concepts and game development principles by building a classic Snake game. Progress from console-based implementation to graphical interfaces while mastering data structures, game loops, and user interface design."
     repoUrl: https://github.com/thelearningplatform/track-snake-game
     # releaseUrl derived: https://github.com/thelearningplatform/track-snake-game/releases/download/v1.0.0/module.tar.gz
-    version: v1.0.0
-    checksum: "" # TODO: Populate after first release
+    version: v1.0.2
+    checksum: "47285cb62bf6e6a709c92245290b4c1e04782fa818258b474836d71277e1fd8c" # TODO: Populate after first release
     author: thelearningplatform
     authorType: official
     status: pending
