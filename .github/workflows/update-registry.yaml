@@ -43,7 +43,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.MODULES_PAT }}
           commit-message: "chore: update ${{ github.event.client_payload.module_id }} to ${{ github.event.client_payload.version }}"
           title: "Update ${{ github.event.client_payload.module_id }} to ${{ github.event.client_payload.version }}"
           body: |
