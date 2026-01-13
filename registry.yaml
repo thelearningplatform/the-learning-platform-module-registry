@@ -16,7 +16,7 @@ modules:
     checksum: "ea8eec2c8f37e07f81a000100ffc9f5e7fdcb96e42a96392de8ca07110a48b2c" # TODO: Populate after first release
     author: thelearningplatform
     authorType: official
-    status: pending
+    status: approved
     approvedAt: "2026-01-04T00:00:00Z"
     approvedBy: platform-admin
   - id: quic-tutorial
@@ -40,6 +40,6 @@ modules:
     checksum: "47285cb62bf6e6a709c92245290b4c1e04782fa818258b474836d71277e1fd8c" # TODO: Populate after first release
     author: thelearningplatform
     authorType: official
-    status: pending
+    status: approved
     approvedAt: "2026-01-04T00:00:00Z"
     approvedBy: platform-admin
